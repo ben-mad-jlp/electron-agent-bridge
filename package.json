@@ -1,0 +1,28 @@
+{
+  "name": "electron-agent-bridge",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Drive an Electron app from an MCP server over the Chrome DevTools Protocol: electron-main CDP hooks, a connect-per-op CDP driver, and ready-made desktop_* MCP tools.",
+  "license": "MIT",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js" },
+    "./electron-main": { "types": "./dist/electron-main.d.ts", "import": "./dist/electron-main.js" },
+    "./driver": { "types": "./dist/driver.d.ts", "import": "./dist/driver.js" },
+    "./mcp-tools": { "types": "./dist/mcp-tools.d.ts", "import": "./dist/mcp-tools.js" }
+  },
+  "files": ["dist", "src"],
+  "scripts": {
+    "build": "tsc",
+    "prepare": "tsc"
+  },
+  "dependencies": {
+    "chrome-remote-interface": "^0.34.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.5.0"
+  }
+}
