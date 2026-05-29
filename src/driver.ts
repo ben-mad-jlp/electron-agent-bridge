@@ -7,15 +7,17 @@
 // `finally`, mirroring the proven withCDPSession pattern. Targets are resolved
 // per call so the driver tolerates window/tab churn.
 
-import { createRequire } from 'node:module';
 import { promises as fsp } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 
-// chrome-remote-interface ships no types; load it as `any` via createRequire,
-// matching the repo's existing pattern in src/services/cdp-session.ts.
-const require = createRequire(import.meta.url);
-const CDP = require('chrome-remote-interface') as any;
+// chrome-remote-interface ships no types. Use a STATIC import (not createRequire)
+// so bundlers — notably `bun build --compile`, used to produce the packaged
+// sidecar binary — can follow and include it. A dynamic createRequire is
+// invisible to the compiler and the package is missing at runtime.
+// @ts-ignore - no bundled type declarations
+import CDPImport from 'chrome-remote-interface';
+const CDP = CDPImport as any;
 
 export type CDPTarget = {
   id: string;
