@@ -4,6 +4,8 @@
   "type": "module",
   "description": "Drive an Electron app from an MCP server over the Chrome DevTools Protocol: electron-main CDP hooks, a connect-per-op CDP driver, and ready-made desktop_* MCP tools.",
   "license": "MIT",
+  "repository": { "type": "git", "url": "git+https://github.com/ben-mad-jlp/electron-agent-bridge.git" },
+  "homepage": "https://github.com/ben-mad-jlp/electron-agent-bridge#readme",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",

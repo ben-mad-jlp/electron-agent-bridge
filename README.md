@@ -1,5 +1,7 @@
 # electron-agent-bridge
 
+> https://github.com/ben-mad-jlp/electron-agent-bridge
+
 Drive an Electron app from an MCP server (or any Node process) over the Chrome
 DevTools Protocol. Three small, dependency-light pieces:
 
@@ -18,8 +20,12 @@ Only runtime dependency: [`chrome-remote-interface`](https://www.npmjs.com/packa
 ## Install
 
 ```bash
-npm install electron-agent-bridge
-# or, as a local link:  "electron-agent-bridge": "file:../electron-agent-bridge"
+# from GitHub
+npm install ben-mad-jlp/electron-agent-bridge
+# or as a git URL dependency in package.json:
+#   "electron-agent-bridge": "github:ben-mad-jlp/electron-agent-bridge"
+# or, as a local link:
+#   "electron-agent-bridge": "file:../electron-agent-bridge"
 ```
 
 ## Usage
