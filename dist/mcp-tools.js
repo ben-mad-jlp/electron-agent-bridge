@@ -85,10 +85,33 @@ export function createDesktopTools(getDriver) {
         },
         {
             name: 'desktop_snapshot',
-            description: 'Capture an accessibility/text snapshot of the current page.',
+            description: 'Text/structure snapshot of the visible page: one line per interactive or labelled element, ' +
+                'as `tag @testid #id role= aria= "text"`. Styling classes are OMITTED by default — they were ' +
+                '90% of the output and nothing can act on them. Pass verbose:true to include them, selector to ' +
+                'narrow the scan, limit to cap the line count (default 500). For ONE element prefer desktop_query.',
             inputSchema: {
                 type: 'object',
-                properties: {},
+                properties: {
+                    selector: { type: 'string', description: 'CSS selector to scan (default: interactive + labelled elements).' },
+                    verbose: { type: 'boolean', description: 'Include class lists. Default false.' },
+                    limit: { type: 'number', description: 'Max lines returned. Default 500.' },
+                },
+            },
+        },
+        {
+            name: 'desktop_query',
+            description: 'Read ONLY the elements matching a CSS selector, in the same line format as desktop_snapshot. ' +
+                'Use to check a specific claim ("what does the status banner say") without paying for a whole-page ' +
+                'read. Returns an empty string when nothing matches — an absent element and an empty one are ' +
+                'different findings, so check the match count.',
+            inputSchema: {
+                type: 'object',
+                properties: {
+                    selector: { type: 'string' },
+                    verbose: { type: 'boolean', description: 'Include class lists. Default false.' },
+                    limit: { type: 'number', description: 'Max lines returned. Default 100.' },
+                },
+                required: ['selector'],
             },
         },
         {
@@ -130,9 +153,24 @@ export function createDesktopTools(getDriver) {
             await d.waitFor(req(args, 'selector'), args?.timeoutMs);
             return JSON.stringify({ ok: true });
         },
-        desktop_snapshot: async () => {
+        desktop_snapshot: async (args) => {
             const d = await getDriver();
-            return JSON.stringify({ snapshot: await d.snapshot() });
+            const snapshot = await d.snapshot({
+                selector: args?.selector,
+                verbose: args?.verbose,
+                limit: args?.limit,
+            });
+            return JSON.stringify({ snapshot, lines: snapshot ? snapshot.split('\n').length : 0 });
+        },
+        desktop_query: async (args) => {
+            const d = await getDriver();
+            const snapshot = await d.query(req(args, 'selector'), {
+                verbose: args?.verbose,
+                limit: args?.limit,
+            });
+            // `matches` is load-bearing: an empty result must be distinguishable from a match with no
+            // text, and "the selector found nothing" is itself a finding an auditor needs to see.
+            return JSON.stringify({ snapshot, matches: snapshot ? snapshot.split('\n').length : 0 });
         },
         desktop_list_targets: async () => {
             const d = await getDriver();

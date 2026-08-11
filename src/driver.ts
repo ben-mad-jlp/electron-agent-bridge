@@ -220,38 +220,78 @@ export class ElectronDriver {
     }
   }
 
-  async snapshot(): Promise<string> {
+  /** Build the shared page-scanning expression. `sel` selects, `verbose` keeps class lists. */
+  private scanExpr(sel: string, verbose: boolean, limit: number): string {
+    return `(function(){
+      var nodes = Array.prototype.slice.call(document.querySelectorAll(${JSON.stringify(sel)}));
+      var lines = [];
+      for (var i = 0; i < nodes.length && lines.length < ${limit}; i++) {
+        var el = nodes[i];
+        var visible = el.offsetParent !== null || el.getClientRects().length > 0;
+        if (!visible) continue;
+        var tag = el.tagName.toLowerCase();
+        var parts = [tag];
+        // IDENTITY, in descending order of stability. A test id survives restyling; a Tailwind
+        // class list does not, and an agent that keyed off one would break on a hover colour.
+        var tid = el.getAttribute('data-testid');
+        if (tid) parts.push('@' + tid);
+        else if (el.id) parts.push('#' + el.id);
+        var role = el.getAttribute('role');
+        if (role) parts.push('role=' + role);
+        var label = el.getAttribute('aria-label');
+        if (label) parts.push('aria=' + JSON.stringify(label.slice(0, 40)));
+        if (tag === 'input' || tag === 'textarea' || tag === 'select') {
+          var ty = el.getAttribute('type'); if (ty) parts.push('type=' + ty);
+          var nm = el.getAttribute('name'); if (nm) parts.push('name=' + nm);
+          if (el.value) parts.push('value=' + JSON.stringify(String(el.value).slice(0, 40)));
+        }
+        if (el.disabled) parts.push('disabled');
+        ${verbose ? `
+        if (el.className && typeof el.className === 'string') {
+          var c = el.className.trim().split(/\\s+/).filter(Boolean);
+          if (c.length) parts.push('.' + c.join('.'));
+        }` : ''}
+        var txt = (el.textContent || '').replace(/\\s+/g, ' ').trim().slice(0, 120);
+        var line = parts.join(' ');
+        if (txt) line += ' "' + txt + '"';
+        lines.push(line);
+      }
+      return lines.join('\n');
+    })()`;
+  }
+
+  /**
+   * Text/structure snapshot of the visible page.
+   *
+   * MEASURED 2026-08-11 against a real Tailwind app: emitting className made the output 90%
+   * styling noise — a single screen cost ~10k tokens, most of it
+   * `hover:bg-gray-100.dark:hover:bg-gray-700.transition-colors` repeated per element. An agent
+   * cannot act on any of it, and a budgeted investigation burns its ceiling on one page. So the
+   * default now emits IDENTITY and TEXT only; pass `verbose` to get classes back.
+   */
+  async snapshot(opts?: { selector?: string; verbose?: boolean; limit?: number }): Promise<string> {
+    const sel = opts?.selector ?? 'a,button,input,textarea,select,[role],[data-testid],h1,h2,h3';
     const client = await this.connect();
     try {
-      const expr = `(function(){
-        var sel = 'a,button,input,textarea,select,[role],h1,h2,h3';
-        var nodes = Array.prototype.slice.call(document.querySelectorAll(sel));
-        var lines = [];
-        for (var i = 0; i < nodes.length; i++) {
-          var el = nodes[i];
-          var visible = el.offsetParent !== null || el.getClientRects().length > 0;
-          if (!visible) continue;
-          var tag = el.tagName.toLowerCase();
-          var id = el.id ? '#' + el.id : '';
-          var cls = '';
-          if (el.className && typeof el.className === 'string') {
-            var c = el.className.trim().split(/\\s+/).filter(Boolean);
-            if (c.length) cls = '.' + c.join('.');
-          }
-          var txt = (el.textContent || '').replace(/\\s+/g, ' ').trim().slice(0, 60);
-          var line = tag + id + cls;
-          if (txt) line += ' "' + txt + '"';
-          lines.push(line);
-        }
-        return lines.join('\\n');
-      })()`;
-      const r = await client.Runtime.evaluate({ expression: expr, returnByValue: true });
+      const r = await client.Runtime.evaluate({
+        expression: this.scanExpr(sel, opts?.verbose === true, opts?.limit ?? 500),
+        returnByValue: true,
+      });
       return r.result?.value ?? '';
     } finally {
-      try {
-        await client.close();
-      } catch {}
+      try { await client.close(); } catch {}
     }
+  }
+
+  /**
+   * Read ONLY the elements matching `selector`.
+   *
+   * Exists so "what does the epic banner say" does not cost a whole-page read. A full snapshot
+   * is the wrong instrument for checking one claim, and it is the difference between an agent
+   * auditing twenty screens or three.
+   */
+  async query(selector: string, opts?: { verbose?: boolean; limit?: number }): Promise<string> {
+    return this.snapshot({ selector, verbose: opts?.verbose, limit: opts?.limit ?? 100 });
   }
 
   async listTargets(): Promise<CDPTarget[]> {
